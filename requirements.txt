@@ -1,0 +1,5 @@
+numpy>=1.24
+onnx>=1.13
+onnxruntime>=1.15
+fastapi>=0.100
+uvicorn>=0.23

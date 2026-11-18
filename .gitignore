@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 转换产物缓存（与芯片绑定，不入库）
+artifacts/
+
+# 运行产物（可用 examples/make_model.py 重新生成）
+*.serialized.bin
+*.dla
+*.nb
+
+# 系统与编辑器
+.DS_Store
+.idea/
+.vscode/

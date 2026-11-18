@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>EdgeAI Runtime 控制台</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c2230; --line:#262d3a;
+    --text:#e6edf3; --muted:#8b96a5; --accent:#4c8dff; --ok:#3ecf8e; --warn:#f0b429; --err:#f06666;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;font-size:14px;line-height:1.6}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 60px}
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+  h1{font-size:21px;margin:0;letter-spacing:.3px}
+  .sub{color:var(--muted);font-size:13px}
+  .badge{font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--muted)}
+  .grid{display:grid;grid-template-columns:1.05fr 1fr;gap:16px;margin-top:20px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .card h2{font-size:13px;margin:0 0 12px;color:var(--muted);font-weight:600;letter-spacing:.6px;text-transform:uppercase}
+  .be{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:10px 12px;border-radius:9px;background:var(--panel2);margin-bottom:8px;border:1px solid transparent}
+  .be:hover{border-color:#2f3a4d}
+  .be .name{font-family:ui-monospace,Menlo,monospace;font-size:13px;color:var(--accent)}
+  .be .desc{color:var(--muted);font-size:12px}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+  .dot.on{background:var(--ok);box-shadow:0 0 8px rgba(62,207,142,.6)}
+  .dot.off{background:#4a5262}
+  .kv{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #232b38;font-size:13px}
+  .kv:last-child{border-bottom:0}
+  .kv span:first-child{color:var(--muted)}
+  code,.mono{font-family:ui-monospace,Menlo,monospace}
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px}
+  .node{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px}
+  .node b{color:var(--accent);font-weight:600}
+  .arrow{color:#43506a;font-size:12px}
+  label{display:block;font-size:12px;color:var(--muted);margin:12px 0 5px}
+  select,input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:9px 10px;font-size:13px;outline:none}
+  select:focus,input:focus{border-color:var(--accent)}
+  .btns{display:flex;gap:10px;margin-top:16px}
+  button{flex:1;background:var(--accent);border:0;color:#fff;padding:10px 12px;border-radius:9px;
+    font-size:13px;cursor:pointer;font-weight:600;transition:.15s}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+  button:hover{filter:brightness(1.1)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .result{margin-top:16px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .result.hidden{display:none}
+  .row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px}
+  .row .v{font-family:ui-monospace,Menlo,monospace}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12.5px}
+  th,td{text-align:left;padding:7px 6px;border-bottom:1px solid #232b38}
+  th{color:var(--muted);font-weight:500}
+  .ok{color:var(--ok)} .err{color:var(--err)} .warn{color:var(--warn)}
+  .bar{height:8px;border-radius:4px;background:#2a3446;overflow:hidden;margin-top:4px}
+  .bar>i{display:block;height:100%;background:var(--accent)}
+  .foot{margin-top:22px;color:var(--muted);font-size:12px;line-height:1.9}
+  .foot b{color:var(--text)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>深穹 EdgeAI Runtime · 控制台</h1>
+    <span class="badge">跨硬件抽象层最小原型</span>
+    <span class="sub" id="modelInfo">模型加载中…</span>
+  </header>
+
+  <div class="grid">
+    <!-- 左列 -->
+    <div>
+      <div class="card">
+        <h2>已注册后端</h2>
+        <div id="backendList"></div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h2>模型 / 计算图（统一 IR）</h2>
+        <div class="kv"><span>模型名</span><span class="mono" id="gName">-</span></div>
+        <div class="kv"><span>算子数</span><span class="mono" id="gNodes">-</span></div>
+        <div class="kv"><span>权重体积</span><span class="mono" id="gWeights">-</span></div>
+        <label style="margin-bottom:8px">拓扑执行顺序</label>
+        <div class="flow" id="flow"></div>
+      </div>
+    </div>
+
+    <!-- 右列 -->
+    <div>
+      <div class="card">
+        <h2>运行面板</h2>
+        <label>选择一个后端</label>
+        <select id="backendSel"></select>
+        <label>输入随机种子（同种子 = 同输入，用于对比）</label>
+        <input id="seed" type="number" value="0" />
+        <div class="btns">
+          <button id="runBtn">运行推理</button>
+          <button id="cmpBtn" class="ghost">双后端对比</button>
+        </div>
+
+        <div id="result" class="result hidden"></div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h2>平台在做什么</h2>
+        <div style="font-size:13px;color:var(--muted)">
+          同一份模型、同一份调用代码，通过 <span class="mono">EdgeRuntime(backend=…)</span>
+          在 ONNX Runtime CPU 与（模拟/真实）NPU 之间切换；
+          上层业务代码不需要知道底下跑在哪块硬件上。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <b>命令行等价用法：</b><span class="mono">python examples/demo.py</span> ·
+    <span class="mono">python tests/test_backends.py</span> ·
+    <span class="mono">python -m uvicorn webapp.server:app --port 8000</span><br />
+    <b>接入真实 NPU：</b>在 <span class="mono">runtime/backend/</span> 新增一个继承 BaseBackend 的类并加
+    <span class="mono">@register_backend("xxx")</span> 即可出现在上方后端列表里。
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+async function loadBackends() {
+  const data = await (await fetch('/api/backends')).json();
+  $('modelInfo').textContent = `${data.model} · ${data.model_exists ? '已就绪' : '模型缺失，请先运行 make_model.py'}`;
+  const list = $('backendList'), sel = $('backendSel');
+  list.innerHTML = ''; sel.innerHTML = '';
+  for (const [name, meta] of Object.entries(data.backends)) {
+    const el = document.createElement('div');
+    el.className = 'be';
+    el.innerHTML = `<div>
+        <div class="name">${name}</div>
+        <div class="desc">${meta.description}</div>
+      </div>
+      <div class="badge"><span class="dot ${meta.available ? 'on' : 'off'}"></span>${meta.available ? '可用' : '缺依赖'}</div>`;
+    list.appendChild(el);
+    if (meta.available) {
+      const o = document.createElement('option');
+      o.value = name; o.textContent = name;
+      sel.appendChild(o);
+    }
+  }
+  if (sel.value === 'sim_npu') sel.value = 'ort_cpu';
+}
+
+async function loadGraph() {
+  const g = await (await fetch('/api/graph')).json();
+  $('gName').textContent = g.name;
+  $('gNodes').textContent = g.nodes.length + ' 个';
+  $('gWeights').textContent = g.weight_kb + ' KB';
+  const flow = $('flow'); flow.innerHTML = '';
+  g.nodes.forEach((n, i) => {
+    if (i) flow.insertAdjacentHTML('beforeend', '<span class="arrow">→</span>');
+    const d = document.createElement('div');
+    d.className = 'node';
+    d.innerHTML = `<b>${n.op}</b> <span style="color:#7d8798">${n.name}</span>`;
+    d.title = `in: ${n.inputs.join(', ')}\nout: ${n.outputs.join(', ')}\nattrs: ${JSON.stringify(n.attrs)}`;
+    flow.appendChild(d);
+  });
+}
+
+function show(html) {
+  const r = $('result'); r.classList.remove('hidden'); r.innerHTML = html;
+}
+
+$('runBtn').onclick = async () => {
+  $('runBtn').disabled = true;
+  try {
+    const res = await fetch('/api/infer', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ backend: $('backendSel').value, seed: +$('seed').value })
+    });
+    const d = await res.json();
+    if (d.error) { show(`<div class="err">${d.error}</div>`); return; }
+    show(`
+      <div class="row"><span>后端</span><span class="v">${d.backend}</span></div>
+      <div class="row"><span>耗时</span><span class="v">${d.latency_ms} ms</span></div>
+      <div class="row"><span>输出形状</span><span class="v">[${d.shape.join(', ')}]</span></div>
+      <div class="row"><span>预测类别(argmax)</span><span class="v ok">#${d.argmax}</span></div>
+      <div class="row" style="margin-top:6px"><span>前 10 个输出值</span></div>
+      <div class="mono" style="color:var(--muted);font-size:12px;word-break:break-all">${d.values.join(', ')}</div>
+    `);
+  } finally { $('runBtn').disabled = false; }
+};
+
+$('cmpBtn').onclick = async () => {
+  $('cmpBtn').disabled = true;
+  try {
+    const res = await fetch('/api/compare', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seed: +$('seed').value })
+    });
+    const d = await res.json();
+    if (d.error) { show(`<div class="err">${d.error}</div>`); return; }
+    const maxT = Math.max(...Object.values(d.timings));
+    const rows = Object.entries(d.timings).map(([k, v]) => `
+      <tr><td class="mono">${k}</td><td class="mono">${v} ms</td>
+      <td style="width:42%"><div class="bar"><i style="width:${(v / maxT * 100).toFixed(0)}%"></i></div></td></tr>`).join('');
+    show(`
+      <div class="row"><span>一致性结论</span>
+        <span class="v ${d.consistent ? 'ok' : 'err'}">${d.consistent ? '通过' : '未通过'}</span></div>
+      <div class="row"><span>最大绝对误差</span><span class="v">${d.max_abs_diff.toExponential(2)}</span></div>
+      <div class="row"><span>argmax（两后端）</span>
+        <span class="v">ort_cpu #${d.argmax.ort_cpu} / sim_npu #${d.argmax.sim_npu}</span></div>
+      <table><thead><tr><th>后端</th><th>耗时</th><th>相对耗时</th></tr></thead><tbody>${rows}</tbody></table>
+      <div style="margin-top:8px;color:var(--muted);font-size:12px">同一份输入(seed=${d.seed})下的输出前 5 项：</div>
+      <div class="mono" style="font-size:12px;color:var(--muted)">ort_cpu: ${d.values.ort_cpu.slice(0,5).join(', ')}</div>
+      <div class="mono" style="font-size:12px;color:var(--muted)">sim_npu: ${d.values.sim_npu.slice(0,5).join(', ')}</div>
+    `);
+  } finally { $('cmpBtn').disabled = false; }
+};
+
+loadBackends();
+loadGraph();
+</script>
+</body>
+</html>
